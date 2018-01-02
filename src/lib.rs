@@ -39,7 +39,7 @@ struct Blocks {
     block: [u8; 64],
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 struct Sha1State {
     state: [u32; 5],
 }
@@ -48,6 +48,7 @@ struct Sha1State {
 ///
 /// A digest can be formatted to view the digest as a hex string, or the bytes
 /// can be extracted for later processing.
+#[derive(PartialOrd, Ord, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Digest {
     data: Sha1State,
 }
@@ -187,13 +188,13 @@ const K3: u32 = 0xCA62C1D6u32;
 
 /// Not an intrinsic, but gets the first element of a vector.
 #[inline]
-pub fn sha1_first(w0: u32x4) -> u32 {
+fn sha1_first(w0: u32x4) -> u32 {
     w0.0
 }
 
 /// Not an intrinsic, but adds a word to the first element of a vector.
 #[inline]
-pub fn sha1_first_add(e: u32, w0: u32x4) -> u32x4 {
+fn sha1_first_add(e: u32, w0: u32x4) -> u32x4 {
     let u32x4(a, b, c, d) = w0;
     u32x4(e.wrapping_add(a), b, c, d)
 }
@@ -218,20 +219,15 @@ fn sha1msg2(a: u32x4, b: u32x4) -> u32x4 {
     u32x4(w16, w17, w18, w19)
 }
 
-/// Performs 4 rounds of the message schedule update.
-pub fn sha1_schedule_x4(v0: u32x4, v1: u32x4, v2: u32x4, v3: u32x4) -> u32x4 {
-    sha1msg2(sha1msg1(v0, v1) ^ v2, v3)
-}
-
 /// Emulates `llvm.x86.sha1nexte` intrinsic.
 #[inline]
-pub fn sha1_first_half(abcd: u32x4, msg: u32x4) -> u32x4 {
+fn sha1_first_half(abcd: u32x4, msg: u32x4) -> u32x4 {
     sha1_first_add(sha1_first(abcd).rotate_left(30), msg)
 }
 
 /// Emulates `llvm.x86.sha1rnds4` intrinsic.
 /// Performs 4 rounds of the message block digest.
-pub fn sha1_digest_round_x4(abcd: u32x4, work: u32x4, i: i8) -> u32x4 {
+fn sha1_digest_round_x4(abcd: u32x4, work: u32x4, i: i8) -> u32x4 {
     const K0V: u32x4 = u32x4(K0, K0, K0, K0);
     const K1V: u32x4 = u32x4(K1, K1, K1, K1);
     const K2V: u32x4 = u32x4(K2, K2, K2, K2);
@@ -429,6 +425,12 @@ impl fmt::Display for Digest {
             try!(write!(f, "{:08x}", i));
         }
         Ok(())
+    }
+}
+
+impl fmt::Debug for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Digest {{ \"{}\" }}", self)
     }
 }
 
